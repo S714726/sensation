@@ -2,7 +2,7 @@
 package s7.sensation
 
 import scala.collection.mutable.HashMap
-import scala.xml
+import scala.xml.{Elem, Node, XML}
 
 import java.net.URL
 
@@ -13,7 +13,7 @@ import java.net.URL
 
 case class EchoNestKey(key: String)
 
-abstract class Query ()(implicit val apiKey: EchoNestKey) {
+trait Query  {
   val root = "http://developer.echonest.com/api/v4/"
   val opts = "&format=xml"
   def base: String
@@ -22,30 +22,36 @@ abstract class Query ()(implicit val apiKey: EchoNestKey) {
   //   introduces the potential for more errors than type safety prevents
   def data: HashMap[QueryParam, Any]
 
-  def runQuery(p: QueryParam): Any = {
-  // temporarily keep track of the number of queries we send out
+  def runQuery(p: QueryParam)(implicit apiKey: EchoNestKey): Any =
+    processQuery(p, fetchQuery(p)(apiKey))
+
+  def fetchQuery(p: QueryParam)(implicit apiKey: EchoNestKey): Elem = {
+    // temporarily keep track of the number of queries we send out
     Console.println("--------------------------that's one query")
-//    try {
-      val elem = xml.XML.load(
-        new URL(root + base +
-                (p match {
-                  case Songs => "songs?name=" + data(Name)
-                  case Hotttnesss => "profile?id=" + data(Id) + "&bucket=song_hotttnesss"
-                  // needs to be exhaustive...maybe queries aren't necessary for some
-                }) + "&api_key=" + apiKey.key + opts))
-      p match {
-        case Songs => elem \ "songs" \\ "song" map {
-          (n: xml.Node) => Song(InputName((n \ "title") text), InputId((n \ "id") text))}
-        case Hotttnesss => (elem \ "songs" \\ "song" \\ "song_hotttnesss" text) toDouble
-        // case _ => needs to be exhaustive
-      }
-//    } catch (ex: Exception) {
+    //    try {
+    XML.load(new URL
+             (root + base +
+              (p match {
+                case Songs => "songs?name=" + data(Name).asInstanceOf[String]
+                .replaceAll(" ", "%20")
+                case Hotttnesss => "profile?id=" + data(Id) + "&bucket=song_hotttnesss"
+              }) + "&api_key=" + apiKey.key + opts))
+    //    } catch (ex: Exception) {
       /* Catch a few exceptions:
        HTTP 400 errors I've recieved so far:
        too many requests per time period
        bad API key
        */
-//    }
+    //    }
+  }
+
+  def processQuery (p: QueryParam, elem: Elem)(implicit apiKey: EchoNestKey): Any = {
+    p match {
+      case Songs => elem \ "songs" \\ "song" map {
+        (n: Node) => Song(InputName((n \ "title") text), InputId((n \ "id") text))}
+      case Hotttnesss => (elem \ "songs" \\ "song" \\ "song_hotttnesss" text) toDouble
+      // case _ => needs to be exhaustive
+    }
   }
 }
 

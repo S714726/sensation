@@ -21,7 +21,9 @@ extends Query {
   name.foreach((x: InputName) => data(Name) = x.str)
   data(Id) = id.str
 
-  // The best way, or just override a HashMap interface with QueryParam keys?
+  // using apply(QueryParam): QueryResult with result pimping could be a better way
+  //   client-side might have to unwrap case classes or the like, depending on how
+  //   it goes, but casting might go away--we'll see after I beef up the API a bit more
   def hotttnesss: Double = data.getOrElseUpdate(
     Hotttnesss,runQuery(Hotttnesss)).asInstanceOf[Double]
 }
