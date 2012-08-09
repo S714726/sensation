@@ -1,4 +1,3 @@
-
 package s7.sensation
 
 import scala.collection.mutable.HashMap
@@ -6,14 +5,9 @@ import scala.xml.{Elem, Node, XML}
 
 import java.net.URL
 
-//     Notes:
-// Java API does everything by fetching individual bucket information
-// Python API only makes requests when it needs to
-//   Uses dicts to store stuff
-
 case class EchoNestKey(key: String)
 
-trait Query  {
+trait Query {
   val root = "http://developer.echonest.com/api/v4/"
   val opts = "&format=xml"
   def base: String
@@ -37,10 +31,17 @@ trait Query  {
                 case Hotttnesss => "profile?id=" + data(Id) + "&bucket=song_hotttnesss"
               }) + "&api_key=" + apiKey.key + opts))
     //    } catch (ex: Exception) {
-      /* Catch a few exceptions:
-       HTTP 400 errors I've recieved so far:
-       too many requests per time period
-       bad API key
+      /* A few exceptions to be aware of or catch/throw myself:
+Code	Value
+-1	Unknown Error
+0	Success
+1	Missing/ Invalid API Key
+2	This API key is not allowed to call this method
+3	Rate Limit Exceeded
+4	Missing Parameter
+5	Invalid Parameter
+
+Should handle these in processQuery, to test them
        */
     //    }
   }
@@ -66,4 +67,3 @@ case object Hotttnesss extends QueryParam
 
 case class InputName(str: String)
 case class InputId(str: String)
-
