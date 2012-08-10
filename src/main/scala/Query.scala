@@ -17,19 +17,20 @@ trait Query {
   def data: HashMap[QueryParam, Any]
 
   def runQuery(p: QueryParam)(implicit apiKey: EchoNestKey): Any =
-    processQuery(p, fetchQuery(p)(apiKey))
+    processQuery(p, fetchQuery(generateQuery(p)(apiKey)))
 
-  def fetchQuery(p: QueryParam)(implicit apiKey: EchoNestKey): Elem = {
+  def generateQuery(p: QueryParam)(implicit apiKey: EchoNestKey): String =
+    root + base + (p match {
+      case Songs => "songs?name=" + data(Name).asInstanceOf[String]
+      .replaceAll(" ", "%20")
+      case Hotttnesss => "profile?id=" + data(Id) + "&bucket=song_hotttnesss"
+    }) + "&api_key=" + apiKey.key + opts
+
+  def fetchQuery(q: String): Elem = {
     // temporarily keep track of the number of queries we send out
     Console.println("--------------------------that's one query")
     //    try {
-    XML.load(new URL
-             (root + base +
-              (p match {
-                case Songs => "songs?name=" + data(Name).asInstanceOf[String]
-                .replaceAll(" ", "%20")
-                case Hotttnesss => "profile?id=" + data(Id) + "&bucket=song_hotttnesss"
-              }) + "&api_key=" + apiKey.key + opts))
+    XML.load(new URL(q))
     //    } catch (ex: Exception) {
       /* A few exceptions to be aware of or catch/throw myself:
 Code	Value
