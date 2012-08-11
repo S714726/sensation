@@ -1,29 +1,54 @@
-
-package s7.sensation
+package s7.sensation.song
 
 import scala.collection.mutable.HashMap
+import scala.xml.{Elem, Node}
 
-import java.net.URL
+import s7.sensation._
 
-// Maybe use "Title" instead of "Name" for Song to keep nomenclature consistent?
+sealed abstract class Parameter extends QueryParameter
+case object Title extends Parameter
+case object Id extends Parameter
+case object Hotttnesss extends Parameter
+
 object Song {
-  def apply(id: InputId)(implicit apiKey: EchoNestKey): Song =
-    new Song(None, id)
+  def apply(id: String)(implicit apiKey: EchoNestKey): Song =
+    new Song(id)
 
-  def apply(name: InputName, id: InputId)(implicit apiKey: EchoNestKey): Song =
-    new Song(Some(name), id)
+  def apply(id: String, title: String)(implicit apiKey: EchoNestKey): Song = {
+    val song: Song = new Song(id)
+    song.data(Title) = title
+    song
+  }
 }
 
-class Song (name: Option[InputName], id: InputId)(implicit apiKey: EchoNestKey)
+class Song (id: String)(implicit apiKey: EchoNestKey)
 extends Query {
   val base = "song/"
-  val data = HashMap.empty[QueryParam, Any]
-  name.foreach((x: InputName) => data(Name) = x.str)
-  data(Id) = id.str
+  val data = HashMap.empty[Parameter, Any]
+  data(Id) = id
 
-  // using apply(QueryParam): QueryResult with result pimping could be a better way
-  //   client-side might have to unwrap case classes or the like, depending on how
-  //   it goes, but casting might go away--we'll see after I beef up the API a bit more
-  def hotttnesss: Double = data.getOrElseUpdate(
-    Hotttnesss,runQuery(Hotttnesss)).asInstanceOf[Double]
+  def apply(t: Title.type): String =
+    data.getOrElseUpdate(Title, runQuery(Title).asInstanceOf[String])
+    .asInstanceOf[String]
+
+  def apply(i: Id.type): String =
+    data.getOrElseUpdate(Id, runQuery(Id).asInstanceOf[String])
+    .asInstanceOf[String]
+
+  def apply(h: Hotttnesss.type): Double =
+     data.getOrElseUpdate(Hotttnesss, runQuery(Hotttnesss).asInstanceOf[String].toDouble)
+    .asInstanceOf[Double]
+
+  def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
+    generateQuery(p, ((p match {
+      case Title => "profile?id=" + apply(Id)
+      case Id => ""
+      case Hotttnesss => "profile?id=" + data(Id) + "&bucket=song_hotttnesss"
+      })))(apiKey)
+
+  def processQuery(p: QueryParameter, elem: Elem): Any = p match {
+    case Title => elem \ "songs" \\ "song" \\ "title" text
+    case Id => ""
+    case Hotttnesss => elem \ "songs" \\ "song" \\ "song_hotttnesss" text
+  }
 }
