@@ -4,11 +4,12 @@ import scala.collection.mutable.HashMap
 import scala.xml.{Elem, Node}
 
 import s7.sensation._
+import s7.sensation.playlist.PlaylistSeed
 import s7.sensation.song.Song
 
 sealed abstract class Identifier
-case class NameIdentifier(value: String) extends Identifier
-case class IdIdentifier(value: String) extends Identifier
+case class ArtistName(value: String) extends Identifier
+case class ArtistId(value: String) extends Identifier
 
 sealed abstract class Parameter extends QueryParameter
 case object Name extends Parameter
@@ -23,13 +24,13 @@ object Artist {
 }
 
 class Artist (val ident: Identifier)(implicit apiKey: EchoNestKey)
-extends Query {
+extends Query with PlaylistSeed {
   val base = "artist/"
   val data = HashMap.empty[Parameter, Any]
 
   ident match {
-    case NameIdentifier(s) => data(Name) = s
-    case IdIdentifier(s) => data(Id) = s
+    case ArtistName(s) => data(Name) = s
+    case ArtistId(s) => data(Id) = s
   }
 
   def apply(n: Name.type): String =
@@ -40,20 +41,20 @@ extends Query {
     data.getOrElseUpdate(Id, runQuery(Id).asInstanceOf[String])
     .asInstanceOf[String]
 
-  def getIdentifier: Identifier = if (data.contains(Name)) NameIdentifier(apply(Name))
-                                  else IdIdentifier(apply(Id))
+  def getIdentifier: Identifier = if (data.contains(Name)) ArtistName(apply(Name))
+                                  else ArtistId(apply(Id))
 
   def apply(s: Songs.type): Seq[Song] =
     data.getOrElseUpdate(Songs, runQuery(Songs).asInstanceOf[Seq[Song]])
    .asInstanceOf[Seq[Song]]
 
-  def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String = 
+  def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
     generateQuery(p, (p match {
       case Name => "profile?id=" + apply(Id)
       case Id => "profile?name=" + apply(Name)
-      case Songs => "songs?name=" + (getIdentifier match {
-        case NameIdentifier(n) => "name=" + n.replaceAll(" ", "%20")
-        case IdIdentifier(i) => "id=" + i
+      case Songs => "songs?" + (getIdentifier match {
+        case ArtistName(n) => "name=" + n.replaceAll(" ", "%20")
+        case ArtistId(i) => "id=" + i
       })
     }))(apiKey)
 

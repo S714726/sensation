@@ -1,5 +1,5 @@
 sensation
-=========
+---------
 sensation is (will be) a Scala client for the
 [Echo Nest](http://the.echonest.com "The Echo Nest") API.
 

@@ -4,6 +4,7 @@ import scala.collection.mutable.HashMap
 import scala.xml.{Elem, Node}
 
 import s7.sensation._
+import s7.sensation.playlist.PlaylistSeed
 
 sealed abstract class Parameter extends QueryParameter
 case object Title extends Parameter
@@ -14,6 +15,8 @@ object Song {
   def apply(id: String)(implicit apiKey: EchoNestKey): Song =
     new Song(id)
 
+  // Perhaps a constructor map of sorts, as a lot of convenient information is
+  //   often passed in along with the id
   def apply(id: String, title: String)(implicit apiKey: EchoNestKey): Song = {
     val song: Song = new Song(id)
     song.data(Title) = title
@@ -22,7 +25,7 @@ object Song {
 }
 
 class Song (id: String)(implicit apiKey: EchoNestKey)
-extends Query {
+extends Query with PlaylistSeed {
   val base = "song/"
   val data = HashMap.empty[Parameter, Any]
   data(Id) = id
