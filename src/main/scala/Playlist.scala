@@ -34,7 +34,7 @@ object Static {
         elem \ "songs" \\ "song" map {
           (n: Node) => song.Song((n \ "id") text, (n \ "title") text)
         }
-    }.runQuery(Parameter).asInstanceOf[Seq[song.Song]]
+    }.runQuery(NoParameters).asInstanceOf[Seq[song.Song]]
   }
 }
 

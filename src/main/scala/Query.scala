@@ -8,6 +8,7 @@ import java.net.URL
 case class EchoNestKey(key: String)
 
 abstract class QueryParameter
+case object NoParameters extends QueryParameter
 
 trait Query {
   val root = "http://developer.echonest.com/api/v4/"

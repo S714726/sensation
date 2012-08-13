@@ -11,6 +11,16 @@ case object Title extends Parameter
 case object Id extends Parameter
 case object Hotttnesss extends Parameter
 
+object Search {
+  sealed abstract class SearchParameter extends QueryParameter
+
+  // Don't confuse these with Song and Artist objects; Search is used to
+  //   find/create Artists and Songs from an unknown starting point
+  case object Title extends SearchParameter
+  case object Artist extends SearchParameter
+  case object Combined extends SearchParameter
+}
+
 object Song {
   def apply(id: String)(implicit apiKey: EchoNestKey): Song =
     new Song(id)
@@ -22,6 +32,25 @@ object Song {
     song.data(Title) = title
     song
   }
+
+  def search(elems: (Search.SearchParameter, Any)*)
+  (implicit apiKey: EchoNestKey): Seq[Song] = new Query {
+    val base = "song/"
+
+    def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String = {
+      generateQuery(p, "search?" + (elems.map{(kv) =>
+        (kv._1 match {
+          case Search.Title => "title="
+          case Search.Artist => "artist="
+          case Search.Combined => "combined="
+        }) + kv._2.asInstanceOf[String].replaceAll(" ", "%20")}.mkString("&")))(apiKey)
+    }
+
+    def processQuery(p: QueryParameter, elem: Elem): Any =
+      elem \ "songs" \\ "song" map {
+        (n: Node) => song.Song((n \ "id") text, (n \ "title") text)
+      }
+  }.runQuery(NoParameters).asInstanceOf[Seq[song.Song]]
 }
 
 class Song (id: String)(implicit apiKey: EchoNestKey)
