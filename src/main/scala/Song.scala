@@ -1,7 +1,7 @@
 package s7.sensation.song
 
 import scala.collection.mutable.HashMap
-import scala.xml.{Elem, Node}
+import scala.xml.{Elem, Node, NodeSeq}
 
 import s7.sensation._
 import s7.sensation.playlist.PlaylistSeed
@@ -25,6 +25,12 @@ object Song {
   def apply(elems: (Parameter, Any)*)(implicit apiKey: EchoNestKey): Song =
     new Song(HashMap(elems:_*))
 
+  def apply(elems: Node)(implicit apiKey: EchoNestKey): Song =
+    apply(elems.nonEmptyChildren.map{(elem) => elem match {
+      case <title>{v}</title> => Title -> v.text
+      case <id>{v}</id> => Id -> v.text
+    }}:_*)
+
   def search(elems: (Search.SearchParameter, Any)*)
   (implicit apiKey: EchoNestKey): Seq[Song] = new Query {
     val base = "song/"
@@ -39,10 +45,7 @@ object Song {
     }
 
     def processQuery(p: QueryParameter, elem: Elem): Any =
-      elem \ "songs" \\ "song" map {
-        (n: Node) => song.Song(Title -> ((n \ "title") text),
-                               Id -> ((n \ "id") text))
-      }
+      (elem \ "songs" \\ "song") map ((x) => Song(x))
   }.runQuery(NoParameters).asInstanceOf[Seq[song.Song]]
 }
 

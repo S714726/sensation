@@ -16,6 +16,12 @@ object Artist {
   def apply(elems: (Parameter, Any)*)(implicit apiKey: EchoNestKey): Artist =
     new Artist(HashMap(elems:_*))
 
+  def apply(elems: Node)(implicit apiKey: EchoNestKey): Artist =
+    apply(elems.nonEmptyChildren.map{(elem) => elem match {
+      case <name>{v}</name> => Name -> v.text
+      case <id>{v}</id> => Id -> v.text
+    }}:_*)
+
   // search method would go here, has a load of options
 }
 
@@ -48,10 +54,6 @@ extends Query with PlaylistSeed {
 
   def processQuery(p: QueryParameter, elem: Elem): Any = p match {
     case Name => elem \ "artist" \\ "name" text
-    case Songs => elem \ "songs" \\ "song" map {
-      (n: Node) => Song(song.Title -> ((n \ "title") text),
-                        song.Id -> ((n \ "id") text))
-
-    }
+    case Songs => (elem \ "songs" \\ "song") map ((x) => Song(x))
   }
 }

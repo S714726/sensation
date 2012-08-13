@@ -31,10 +31,7 @@ object Static {
             case s: song.Song => "song_id=" + s(song.Id)
           }}.mkString("&"))
       def processQuery(p: QueryParameter, elem: Elem): Any =
-        elem \ "songs" \\ "song" map {
-          (n: Node) => song.Song(song.Title -> ((n \ "title") text),
-                                 song.Id -> ((n \ "id") text))
-        }
+        (elem \ "songs" \\ "song") map ((x) => song.Song(x))
     }.runQuery(NoParameters).asInstanceOf[Seq[song.Song]]
   }
 }
