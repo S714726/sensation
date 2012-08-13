@@ -24,9 +24,9 @@ object Static {
       def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
         generateQuery(p, "basic?" + seeds.take(5).map {
           (s: PlaylistSeed) => s match {
-            case a: artist.Artist => "artist" + (a.getIdentifier match {
-              case artist.ArtistName(n) => "=" + n.replaceAll(" ", "%20")
-              case artist.ArtistId(i) => "_id=" + i
+            case a: artist.Artist => "artist" + (a.data.get(artist.Name) match {
+              case Some(n) => "=" + n.asInstanceOf[String].replaceAll(" ", "%20")
+              case None => "_id=" + a.data.getOrElse(artist.Id, "").asInstanceOf[String]
             })
             case s: song.Song => "song_id=" + s(song.Id)
           }}.mkString("&"))
