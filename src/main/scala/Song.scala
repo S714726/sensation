@@ -22,16 +22,8 @@ object Search {
 }
 
 object Song {
-  def apply(id: String)(implicit apiKey: EchoNestKey): Song =
-    new Song(id)
-
-  // Perhaps a constructor map of sorts, as a lot of convenient information is
-  //   often passed in along with the id
-  def apply(id: String, title: String)(implicit apiKey: EchoNestKey): Song = {
-    val song: Song = new Song(id)
-    song.data(Title) = title
-    song
-  }
+  def apply(elems: (Parameter, Any)*)(implicit apiKey: EchoNestKey): Song =
+    new Song(HashMap(elems:_*))
 
   def search(elems: (Search.SearchParameter, Any)*)
   (implicit apiKey: EchoNestKey): Seq[Song] = new Query {
@@ -48,16 +40,15 @@ object Song {
 
     def processQuery(p: QueryParameter, elem: Elem): Any =
       elem \ "songs" \\ "song" map {
-        (n: Node) => song.Song((n \ "id") text, (n \ "title") text)
+        (n: Node) => song.Song(Title -> ((n \ "title") text),
+                               Id -> ((n \ "id") text))
       }
   }.runQuery(NoParameters).asInstanceOf[Seq[song.Song]]
 }
 
-class Song (id: String)(implicit apiKey: EchoNestKey)
+class Song (val data: HashMap[Parameter, Any])(implicit apiKey: EchoNestKey)
 extends Query with PlaylistSeed {
   val base = "song/"
-  val data = HashMap.empty[Parameter, Any]
-  data(Id) = id
 
   def apply(t: Title.type): String =
     data.getOrElseUpdate(Title, runQuery(Title).asInstanceOf[String])

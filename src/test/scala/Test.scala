@@ -3,7 +3,7 @@ import scala.xml.{Elem, XML}
 import org.scalatest.FunSpec
 import s7.sensation._
 import s7.sensation.artist.{Artist, Name, Songs}
-import s7.sensation.song.{Hotttnesss, Song, Title}
+import s7.sensation.song.{Hotttnesss, Song, Title, Id}
 
 object ApiKey {
   implicit val key = EchoNestKey("Placeholder")
@@ -41,7 +41,7 @@ class EchoNestSpec extends FunSpec {
   }
 
   describe("Song") {
-    song = new Song("Placeholder") with ValidResponseQuery
+    song = new Song(HashMap(Id -> "Placeholder")) with ValidResponseQuery
     it("should correctly generate queries") {
       val query = song.generateQuery(Hotttnesss)
       assert(query.slice(0, 37) == """http://developer.echonest.com/api/v4/""")

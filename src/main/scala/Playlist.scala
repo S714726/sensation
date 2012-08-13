@@ -32,7 +32,8 @@ object Static {
           }}.mkString("&"))
       def processQuery(p: QueryParameter, elem: Elem): Any =
         elem \ "songs" \\ "song" map {
-          (n: Node) => song.Song((n \ "id") text, (n \ "title") text)
+          (n: Node) => song.Song(song.Title -> ((n \ "title") text),
+                                 song.Id -> ((n \ "id") text))
         }
     }.runQuery(NoParameters).asInstanceOf[Seq[song.Song]]
   }

@@ -49,6 +49,9 @@ extends Query with PlaylistSeed {
   def processQuery(p: QueryParameter, elem: Elem): Any = p match {
     case Name => elem \ "artist" \\ "name" text
     case Songs => elem \ "songs" \\ "song" map {
-      (n: Node) => Song((n \ "id") text, (n \ "title") text)}
+      (n: Node) => Song(song.Title -> ((n \ "title") text),
+                        song.Id -> ((n \ "id") text))
+
+    }
   }
 }
