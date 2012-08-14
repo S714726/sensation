@@ -9,10 +9,10 @@ import s7.sensation._
 trait PlaylistSeed
 
 trait CreateQuery extends Query {
-  def playseeds: Seq[PlaylistSeed]
+  def playSeeds: Seq[PlaylistSeed]
 
   def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
-    generateQuery(p, playseeds.take(5).map {
+    generateQuery(p, playSeeds.take(5).map {
       (s: PlaylistSeed) => s match {
         case a: artist.Artist => "artist" + (a.data.get(artist.Name) match {
           case Some(n) => "=" + n.asInstanceOf[String].replaceAll(" ", "%20")
@@ -28,7 +28,7 @@ object Static {
   def apply(seeds: Seq[PlaylistSeed])(implicit apiKey: EchoNestKey): Seq[song.Song] = {
     new CreateQuery {
       val base = "playlist/basic?"
-      val playseeds = seeds
+      val playSeeds = seeds
 
       def processQuery(p: QueryParameter, elem: Elem): Any =
         (elem \ "songs" \\ "song") map ((x) => song.Song(x))
@@ -40,27 +40,25 @@ object Dynamic {
   def apply(seeds: Seq[PlaylistSeed])(implicit apiKey: EchoNestKey): Dynamic =
     new Dynamic(new CreateQuery {
       val base = "playlist/dynamic/create?"
-      val playseeds = seeds
+      val playSeeds = seeds
       def processQuery(p: QueryParameter, elem: Elem): String = (elem \ "session_id") text
     }.runQuery(NoParameters).asInstanceOf[String])
 }
 
 class Dynamic (val session_id: String)(implicit apiKey: EchoNestKey) {
-  def next: Seq[song.Song] = new Query {
-    val base = "playlist/dynamic/next?"
+  abstract class DynamicQuery (val command: String) extends Query {
+    val base = "playlist/dynamic/"
     def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
-      generateQuery(p, "session_id=" + session_id)
+      generateQuery(p, command + "session_id=" + session_id)
+  }
 
+  def next: Seq[song.Song] = new DynamicQuery("next?") {
     def processQuery(p: QueryParameter, elem: Elem): Any =
       (elem \ "songs" \\ "song") map ((x) => song.Song(x))
   }.runQuery(NoParameters).asInstanceOf[Seq[song.Song]]
 
   def delete {
-    new Query {
-      val base = "playlist/dynamic/delete?"
-      def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
-        generateQuery(p, "session_id=" + session_id)
-
+    new DynamicQuery("delete?") {
       def processQuery(p: QueryParameter, elem: Elem): Any = { }
     }.runQuery(NoParameters)
   }
