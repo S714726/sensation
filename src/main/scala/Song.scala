@@ -4,11 +4,13 @@ import scala.collection.mutable.HashMap
 import scala.xml.{Elem, Node, NodeSeq}
 
 import s7.sensation._
+import s7.sensation.artist
 import s7.sensation.playlist.PlaylistSeed
 
 sealed abstract class Parameter extends QueryParameter
 case object Title extends Parameter
 case object Id extends Parameter
+case object Artist extends Parameter
 case object Hotttnesss extends Parameter
 
 object Search {
@@ -25,11 +27,23 @@ object Song {
   def apply(elems: (Parameter, Any)*)(implicit apiKey: EchoNestKey): Song =
     new Song(HashMap(elems:_*))
 
-  def apply(elems: Node)(implicit apiKey: EchoNestKey): Song =
-    apply(elems.nonEmptyChildren.map{(elem) => elem match {
-      case <title>{v}</title> => Title -> v.text
-      case <id>{v}</id> => Id -> v.text
-    }}:_*)
+  def apply(elems: Node)(implicit apiKey: EchoNestKey): Song = {
+    var songParams = Seq.empty[(Parameter, Any)]
+    var artistParams = Seq.empty[(artist.Parameter, Any)]
+
+    elems.nonEmptyChildren.foreach {
+      (elem) => elem match {
+        case <title>{v}</title> => songParams +:= (Title -> v.text)
+        case <id>{v}</id> => songParams +:= (Id -> v.text)
+        case <artist_name>{v}</artist_name> => artistParams +:= (artist.Name -> v.text)
+        case <artist_id>{v}</artist_id> => artistParams +:= (artist.Id -> v.text)
+      }
+    }
+    if (artistParams.size > 0)
+      songParams +:= (Artist -> artist.Artist(artistParams:_*))
+
+    apply(songParams:_*)
+  }
 
   def search(elems: (Search.SearchParameter, Any)*)
   (implicit apiKey: EchoNestKey): Seq[Song] = new Query {
