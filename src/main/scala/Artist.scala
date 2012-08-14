@@ -29,8 +29,9 @@ class Artist (val data: HashMap[Parameter, Any])(implicit apiKey: EchoNestKey)
 extends Query with PlaylistSeed {
   val base = "artist/"
 
-  // Is there any way to programmatically (pattern match through?) these apply methods?
-  //   Switching to Enums?
+  // Is there any way to programmatically write these apply methods?
+  //   Switching to Enums? Macros(ugh)?
+  //   Perhaps clump up parameters with common return types, e.g. String
   def apply(n: Name.type): String =
     data.getOrElseUpdate(Name, runQuery(Name).asInstanceOf[String])
     .asInstanceOf[String]
