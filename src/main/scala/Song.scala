@@ -39,6 +39,8 @@ object Song {
         case <artist_id>{v}</artist_id> => artistParams +:= (artist.Id -> v.text)
       }
     }
+
+    // This does not work as expected
     if (artistParams.size > 0)
       songParams +:= (Artist -> artist.Artist(artistParams:_*))
 
