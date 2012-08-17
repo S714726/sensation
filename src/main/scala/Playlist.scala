@@ -16,6 +16,12 @@ case object BanSong extends Feedback
 case object SkipSong extends Feedback
 case object FavoriteSong extends Feedback
 
+// Next: steer by general "description" after adding capacity to grab
+//   it from artists
+sealed abstract class Steering
+case class PlaySimilar(i: Int) extends Steering
+case class Variety(i: Int) extends Steering
+
 trait CreateQuery extends Query {
   def playSeeds: Seq[PlaylistSeed]
 
@@ -79,6 +85,19 @@ class Dynamic (val session_id: String)(implicit apiKey: EchoNestKey) {
       }) + "=" + s(song.Id) + "&") {
         def processQuery(p: QueryParameter, elem: Elem): Any = { }
       }.runQuery(NoParameters))
+  }
+
+  def steer(params: Steering*) {
+    new DynamicQuery("steer?" + (params.map {
+      (p) =>
+        p match {
+          case PlaySimilar(i) => if (i >= 0) "more_like_this=last^" + i
+                                 else "less_like_this=last^" + (-i)
+          case Variety(i) => "variety=" + i
+        }
+    }).mkString("&") + "&") {
+      def processQuery(p: QueryParameter, elem: Elem): Any = { }
+    }.runQuery(NoParameters)
   }
 
   // remember that lookahead is also found in pandora, etc.
