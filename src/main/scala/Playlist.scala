@@ -22,6 +22,9 @@ sealed abstract class Steering
 case class PlaySimilar(i: Int) extends Steering
 case class Variety(i: Int) extends Steering
 
+// Need to incorporate playlist creation options used in static&dynamic PLs
+// e.g. val base = "playlist/dynamic/create?variety=1&distribution=wandering&"
+
 trait CreateQuery extends Query {
   def playSeeds: Seq[PlaylistSeed]
 
@@ -53,7 +56,10 @@ object Static {
 object Dynamic {
   def apply(seeds: Seq[PlaylistSeed])(implicit apiKey: EchoNestKey): Dynamic =
     new Dynamic(new CreateQuery {
-      val base = "playlist/dynamic/create?"
+      val base = "playlist/dynamic/create?type=" + (seeds.head match {
+        case v:song.Song => "song-radio"
+        case v:artist.Artist => "artist-radio"
+      }) + "&"
       val playSeeds = seeds
       def processQuery(p: QueryParameter, elem: Elem): String = (elem \ "session_id") text
     }.runQuery(NoParameters).asInstanceOf[String])
