@@ -12,6 +12,7 @@ case object Title extends Parameter
 case object Id extends Parameter
 case object Artist extends Parameter
 case object Hotttnesss extends Parameter
+case object NoParameter extends Parameter
 
 object Search {
   sealed abstract class SearchParameter extends QueryParameter
@@ -27,25 +28,13 @@ object Song {
   def apply(elems: (Parameter, Any)*)(implicit apiKey: EchoNestKey): Song =
     new Song(HashMap(elems:_*))
 
-  def apply(elems: Node)(implicit apiKey: EchoNestKey): Song = {
-    var songParams = Seq.empty[(Parameter, Any)]
-    var artistParams = Seq.empty[(artist.Parameter, Any)]
-
-    elems.nonEmptyChildren.foreach {
-      (elem) => elem match {
-        case <title>{v}</title> => songParams +:= (Title -> v.text)
-        case <id>{v}</id> => songParams +:= (Id -> v.text)
-        case <artist_name>{v}</artist_name> => artistParams +:= (artist.Name -> v.text)
-        case <artist_id>{v}</artist_id> => artistParams +:= (artist.Id -> v.text)
-      }
+  def fromXML(elems: Node): Seq[(Parameter, Any)] = elems.nonEmptyChildren.map {
+    (elem) => elem match {
+      case <title>{v}</title> => Title -> v.text
+      case <id>{v}</id> => Id -> v.text
+      case _ => NoParameter -> null
     }
-
-    // This does not work as expected
-    if (artistParams.size > 0)
-      songParams +:= (Artist -> artist.Artist(artistParams:_*))
-
-    apply(songParams:_*)
-  }
+  }.filterNot(_._1 == NoParameter)
 
   def search(elems: (Search.SearchParameter, Any)*)
   (implicit apiKey: EchoNestKey): Seq[Song] = new Query {
@@ -61,7 +50,7 @@ object Song {
     }
 
     def processQuery(p: QueryParameter, elem: Elem): Any =
-      (elem \ "songs" \\ "song") map ((x) => Song(x))
+      (elem \ "songs" \\ "song") map ((x) => Song(fromXML(x):_*))
   }.runQuery(NoParameters).asInstanceOf[Seq[song.Song]]
 }
 
@@ -77,6 +66,9 @@ extends Query with PlaylistSeed {
     data.getOrElseUpdate(Id, runQuery(Id).asInstanceOf[String])
     .asInstanceOf[String]
 
+  def apply(i: Artist.type): artist.Artist = data.getOrElseUpdate(Artist, runQuery(Artist).asInstanceOf[artist.Artist])
+    .asInstanceOf[artist.Artist]
+
   def apply(h: Hotttnesss.type): Double =
      data.getOrElseUpdate(Hotttnesss, runQuery(Hotttnesss).asInstanceOf[String].toDouble)
     .asInstanceOf[Double]
@@ -85,12 +77,19 @@ extends Query with PlaylistSeed {
     generateQuery(p, ((p match {
       case Title => "profile?id=" + apply(Id)
       case Id => ""
+      case Artist => "profile?id=" + data(Id)
       case Hotttnesss => "profile?id=" + data(Id) + "&bucket=song_hotttnesss"
       })))(apiKey)
 
   def processQuery(p: QueryParameter, elem: Elem): Any = p match {
     case Title => elem \ "songs" \\ "song" \\ "title" text
     case Id => ""
+    // there exists a way to process this
+    case Artist => {
+      val node = elem \ "songs" \\ "song"
+      artist.Artist(artist.Name -> (node \\ "artist_name" text),
+                    artist.Id -> (node \\ "artist_id" text))
+    }
     case Hotttnesss => elem \ "songs" \\ "song" \\ "song_hotttnesss" text
   }
 }

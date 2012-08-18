@@ -5,7 +5,8 @@ import scala.xml.{Elem, Node}
 
 import s7.sensation._
 import s7.sensation.playlist.PlaylistSeed
-import s7.sensation.song.Song
+import s7.sensation.song
+// Clean up the way imports are handled
 
 sealed abstract class Parameter extends QueryParameter
 case object Name extends Parameter
@@ -40,9 +41,9 @@ extends Query with PlaylistSeed {
     data.getOrElseUpdate(Id, runQuery(Id).asInstanceOf[String])
     .asInstanceOf[String]
 
-  def apply(s: Songs.type): Seq[Song] =
-    data.getOrElseUpdate(Songs, runQuery(Songs).asInstanceOf[Seq[Song]])
-   .asInstanceOf[Seq[Song]]
+  def apply(s: Songs.type): Seq[song.Song] =
+    data.getOrElseUpdate(Songs, runQuery(Songs).asInstanceOf[Seq[song.Song]])
+   .asInstanceOf[Seq[song.Song]]
 
   def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
     generateQuery(p, (p match {
@@ -53,8 +54,13 @@ extends Query with PlaylistSeed {
         case None => "id=" + data.getOrElse(Id, "").asInstanceOf[String]
       })}))(apiKey)
 
+  // Just uses XML constructor for Song; should just link to "Artist -> this"
   def processQuery(p: QueryParameter, elem: Elem): Any = p match {
     case Name => elem \ "artist" \\ "name" text
-    case Songs => (elem \ "songs" \\ "song") map ((x) => Song(x))
+    case Songs => (elem \ "songs" \\ "song") map {
+      (elem) =>
+        val params = (song.Artist -> this) +: (song.Song.fromXML(elem))
+        song.Song(params:_*)
+    }
   }
 }

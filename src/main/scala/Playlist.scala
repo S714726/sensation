@@ -45,7 +45,7 @@ object Static {
       val playSeeds = seeds
 
       def processQuery(p: QueryParameter, elem: Elem): Any =
-        (elem \ "songs" \\ "song") map ((x) => song.Song(x))
+        (elem \ "songs" \\ "song") map ((x) => song.Song(song.Song.fromXML(x):_*))
     }.runQuery(NoParameters).asInstanceOf[Seq[song.Song]]
   }
 }
@@ -72,7 +72,7 @@ class Dynamic (val session_id: String)(implicit apiKey: EchoNestKey) {
   def next: (song.Song, (Feedback) => Unit) = {
     val s = new DynamicQuery("next?results=1&") {
       def processQuery(p: QueryParameter, elem: Elem): Any =
-        song.Song((elem \ "songs" \\ "song") head)
+        song.Song(song.Song.fromXML((elem \ "songs" \\ "song") head):_*)
     }.runQuery(NoParameters).asInstanceOf[song.Song]
 
     (s, (f: Feedback) => new DynamicQuery(
