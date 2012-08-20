@@ -19,9 +19,10 @@ object Search {
 
   // Don't confuse these with Song and Artist objects; Search is used to
   //   find/create Artists and Songs from an unknown starting point
-  case object Title extends SearchParameter
-  case object Artist extends SearchParameter
-  case object Combined extends SearchParameter
+  case class Title(v: String) extends SearchParameter
+  case class Artist(v: String) extends SearchParameter
+  case class Combined(v: String) extends SearchParameter
+  case class Style(v: Seq[String]) extends SearchParameter
 }
 
 object Song {
@@ -36,17 +37,19 @@ object Song {
     }
   }.filterNot(_._1 == NoParameter)
 
-  def search(elems: (Search.SearchParameter, Any)*)
+  def search(elems: Search.SearchParameter*)
   (implicit apiKey: EchoNestKey): Seq[Song] = new Query {
     val base = "song/"
 
     def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String = {
-      generateQuery(p, "search?" + (elems.map{(kv) =>
-        (kv._1 match {
-          case Search.Title => "title="
-          case Search.Artist => "artist="
-          case Search.Combined => "combined="
-        }) + kv._2.asInstanceOf[String].replaceAll(" ", "%20")}.mkString("&")))(apiKey)
+      generateQuery(p, "search?" + (elems.map {
+        (elem) => elem match {
+          case Search.Title(v) => "title=" + v
+          case Search.Artist(v) => "artist=" + v
+          case Search.Combined(v) => "combined=" + v
+          case Search.Style(v) => v.map((x) => "style=" + x).mkString("&")
+        }
+      }.mkString("&")))(apiKey)
     }
 
     def processQuery(p: QueryParameter, elem: Elem): Any =
