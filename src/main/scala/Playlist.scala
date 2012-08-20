@@ -16,11 +16,16 @@ case object BanSong extends Feedback
 case object SkipSong extends Feedback
 case object FavoriteSong extends Feedback
 
-// Next: steer by general "description" after adding capacity to grab
-//   it from artists
+// Name collision for "variety"; maybe yet another namespace or
+//   arrangment scheme is necessary
 sealed abstract class Steering
 case class PlaySimilar(i: Int) extends Steering
-case class Variety(i: Int) extends Steering
+case class ChangeVariety(i: Int) extends Steering
+
+sealed abstract class PlaylistOption
+case class Variety(v: Double) extends PlaylistOption
+case object Focused extends PlaylistOption
+case object Wandering extends PlaylistOption
 
 // Need to incorporate playlist creation options used in static&dynamic PLs
 // e.g. val base = "playlist/dynamic/create?variety=1&distribution=wandering&"
@@ -55,8 +60,18 @@ object Static {
 
 object Dynamic {
   def apply(seeds: Seq[PlaylistSeed])(implicit apiKey: EchoNestKey): Dynamic =
+    apply(seeds, Seq.empty[PlaylistOption])(apiKey)
+
+  def apply(seeds: Seq[PlaylistSeed], args: Seq[PlaylistOption])(implicit apiKey: EchoNestKey): Dynamic =
     new Dynamic(new CreateQuery {
-      val base = "playlist/dynamic/create?type=" + (seeds.head match {
+      val base = "playlist/dynamic/create?" + (args map {
+        (arg: PlaylistOption) => arg match {
+          case Variety(v) => "variety=" + v
+          case Focused => "distribution=focused"
+          case Wandering => "distribution=wandering"
+        }
+      }).mkString("&") + (if (args.length > 0) "&" else "") +
+      "type=" + (seeds.head match {
         case v:song.Song => "song-radio"
         case v:artist.Artist => "artist-radio"
       }) + "&"
@@ -99,15 +114,12 @@ class Dynamic (val session_id: String)(implicit apiKey: EchoNestKey) {
         p match {
           case PlaySimilar(i) => if (i >= 0) "more_like_this=last^" + i
                                  else "less_like_this=last^" + (-i)
-          case Variety(i) => "variety=" + i
+          case ChangeVariety(i) => "variety=" + i
         }
     }).mkString("&") + "&") {
       def processQuery(p: QueryParameter, elem: Elem): Any = { }
     }.runQuery(NoParameters)
   }
-
-  // remember that lookahead is also found in pandora, etc.
-  // def lookahead: Seq[song.Song] = new DynamicQuery("next?results=&lookahead=...") {
 
   def restart(seeds: Seq[PlaylistSeed]) {
     new CreateQuery {
