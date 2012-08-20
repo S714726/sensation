@@ -32,7 +32,7 @@ trait CreateQuery extends Query {
     generateQuery(p, playSeeds.take(5).map {
       (s: PlaylistSeed) => s match {
         case a: artist.Artist => "artist" + (a.data.get(artist.Name) match {
-          case Some(n) => "=" + n.asInstanceOf[String].replaceAll(" ", "%20")
+          case Some(n) => "=" + n.asInstanceOf[String]
           case None => "_id=" + a.data.getOrElse(artist.Id, "").asInstanceOf[String]
         })
         case s: song.Song => "song_id=" + s(song.Id)

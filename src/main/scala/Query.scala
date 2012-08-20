@@ -22,7 +22,7 @@ trait Query {
 
   def generateQuery(p: QueryParameter, interior: String)
     (implicit apiKey: EchoNestKey): String =
-      root + base + interior + "&api_key=" + apiKey.key + opts
+      (root + base + interior + "&api_key=" + apiKey.key + opts).replaceAll(" ", "%20")
 
   def fetchQuery(q: String): Elem = XML.load(new URL(q))
 

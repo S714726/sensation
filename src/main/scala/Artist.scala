@@ -52,7 +52,7 @@ extends Query with PlaylistSeed {
   // Add similar(): Seq[Artist] to allow for easy playlist reseeding
 
   def queryIdentifier: String = (data.get(Name) match {
-    case Some(n) => "name=" + n.asInstanceOf[String].replaceAll(" ", "%20")
+    case Some(n) => "name=" + n.asInstanceOf[String]
     case None => "id=" + data.getOrElse(Id, "").asInstanceOf[String]
   })
 
