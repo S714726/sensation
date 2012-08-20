@@ -6,12 +6,12 @@ import scala.xml.{Elem, Node}
 import s7.sensation._
 import s7.sensation.playlist.PlaylistSeed
 import s7.sensation.song
-// Clean up the way imports are handled
 
 sealed abstract class Parameter extends QueryParameter
 case object Name extends Parameter
 case object Id extends Parameter
 case object Songs extends Parameter
+case object Terms extends Parameter
 
 object Artist {
   def apply(elems: (Parameter, Any)*)(implicit apiKey: EchoNestKey): Artist =
@@ -45,14 +45,24 @@ extends Query with PlaylistSeed {
     data.getOrElseUpdate(Songs, runQuery(Songs).asInstanceOf[Seq[song.Song]])
    .asInstanceOf[Seq[song.Song]]
 
+  def apply(s: Terms.type): Seq[(String, Double)] =
+    data.getOrElseUpdate(Terms, runQuery(Terms).asInstanceOf[Seq[(String, Double)]])
+   .asInstanceOf[Seq[(String, Double)]]
+
+  // Add similar(): Seq[Artist] to allow for easy playlist reseeding
+
+  def queryIdentifier: String = (data.get(Name) match {
+    case Some(n) => "name=" + n.asInstanceOf[String].replaceAll(" ", "%20")
+    case None => "id=" + data.getOrElse(Id, "").asInstanceOf[String]
+  })
+
   def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
     generateQuery(p, (p match {
       case Name => "profile?id=" + apply(Id)
       case Id => "profile?name=" + apply(Name)
-      case Songs => "songs?" + (data.get(Name) match {
-        case Some(n) => "name=" + n.asInstanceOf[String].replaceAll(" ", "%20")
-        case None => "id=" + data.getOrElse(Id, "").asInstanceOf[String]
-      })}))(apiKey)
+      case Songs => "songs?" + queryIdentifier
+      case Terms => "terms?" + queryIdentifier
+    }))(apiKey)
 
   // Just uses XML constructor for Song; should just link to "Artist -> this"
   def processQuery(p: QueryParameter, elem: Elem): Any = p match {
@@ -61,6 +71,9 @@ extends Query with PlaylistSeed {
       (elem) =>
         val params = (song.Artist -> this) +: (song.Song.fromXML(elem))
         song.Song(params:_*)
+    }
+    case Terms => (elem \ "terms") map {
+      (term) => ((term \\ "name" text), (term \\ "weight" text).toDouble)
     }
   }
 }
