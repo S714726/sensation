@@ -26,7 +26,8 @@ trait Query {
 
   def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)])
 
-  def fetchQuery(url: String, method: RequestMethod, arguments: Seq[(String, String)])(implicit apiKey: EchoNestKey): Elem = {
+  def fetchQuery(url: String, method: RequestMethod, arguments: Seq[(String, String)])
+    (implicit apiKey: EchoNestKey): Elem = {
     val args = arguments.map {
       (x) => x._1 + "=" + URLEncoder.encode(x._2, "UTF-8")
     }.mkString("&") + opts + "&api_key=" + apiKey.key
