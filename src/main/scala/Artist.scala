@@ -47,22 +47,29 @@ extends Query with PlaylistSeed {
 
   def apply(s: Terms.type): Seq[(String, Double)] =
     data.getOrElseUpdate(Terms, runQuery(Terms).asInstanceOf[Seq[(String, Double)]])
-   .asInstanceOf[Seq[(String, Double)]]
+    .asInstanceOf[Seq[(String, Double)]]
 
   // Add similar(): Seq[Artist] to allow for easy playlist reseeding
 
-  def queryIdentifier: String = (data.get(Name) match {
-    case Some(n) => "name=" + n.asInstanceOf[String]
-    case None => "id=" + data.getOrElse(Id, "").asInstanceOf[String]
+  def queryIdentifier: (String, String) = (data.get(Name) match {
+    case Some(n) => ("name" -> n.asInstanceOf[String])
+    // this line has problems
+    case None => ("id" -> data.getOrElse(Id, "").asInstanceOf[String])
   })
 
-  def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
-    generateQuery(p, (p match {
-      case Name => "profile?id=" + apply(Id)
-      case Id => "profile?name=" + apply(Name)
-      case Songs => "songs?" + queryIdentifier
-      case Terms => "terms?" + queryIdentifier
-    }))(apiKey)
+
+  def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
+    (p match {
+      case Name => "profile"
+      case Id => "name"
+      case Songs => "songs"
+      case Terms => "terms"
+    }, GetRequest, p match {
+      case Name => List(("id" -> apply(Id)))
+      case Id => List(("name" -> apply(Name)))
+      case Songs => List(queryIdentifier)
+      case Terms => List(queryIdentifier)
+    })
 
   // Just uses XML constructor for Song; should just link to "Artist -> this"
   def processQuery(p: QueryParameter, elem: Elem): Any = p match {

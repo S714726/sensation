@@ -41,16 +41,15 @@ object Song {
   (implicit apiKey: EchoNestKey): Seq[Song] = new Query {
     val base = "song/"
 
-    def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String = {
-      generateQuery(p, "search?" + (elems.map {
+    def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
+      ("search", GetRequest, elems.flatMap {
         (elem) => elem match {
-          case Search.Title(v) => "title=" + v
-          case Search.Artist(v) => "artist=" + v
-          case Search.Combined(v) => "combined=" + v
-          case Search.Style(v) => v.map((x) => "style=" + x).mkString("&")
+          case Search.Title(v) => List(("title" -> v))
+          case Search.Artist(v) => List(("artist" -> v))
+          case Search.Combined(v) => List(("combined" -> v))
+          case Search.Style(v) => v.map((x) => ("style" -> x))
         }
-      }.mkString("&")))(apiKey)
-    }
+      })
 
     def processQuery(p: QueryParameter, elem: Elem): Any =
       (elem \ "songs" \\ "song") map ((x) => Song(fromXML(x):_*))
@@ -76,13 +75,14 @@ extends Query with PlaylistSeed {
      data.getOrElseUpdate(Hotttnesss, runQuery(Hotttnesss).asInstanceOf[String].toDouble)
     .asInstanceOf[Double]
 
-  def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
-    generateQuery(p, ((p match {
-      case Title => "profile?id=" + apply(Id)
-      case Id => ""
-      case Artist => "profile?id=" + data(Id)
-      case Hotttnesss => "profile?id=" + data(Id) + "&bucket=song_hotttnesss"
-      })))(apiKey)
+  def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
+    ("profile", GetRequest, p match {
+      case Title => List(("id" -> apply(Id)))
+      case Id => List()
+      case Artist => List(("id" -> data(Id).asInstanceOf[String]))
+      case Hotttnesss => List(("id" -> data(Id).asInstanceOf[String]),
+                              ("bucket" -> "song_hotttnesss"))
+    })
 
   def processQuery(p: QueryParameter, elem: Elem): Any = p match {
     case Title => elem \ "songs" \\ "song" \\ "title" text

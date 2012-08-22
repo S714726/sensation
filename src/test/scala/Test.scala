@@ -26,15 +26,11 @@ class EchoNestSpec extends FunSpec {
     artist = new Artist(HashMap(Name -> "Placeholder")) with ValidResponseQuery
     it("should correctly generate queries") {
       val query = artist.generateQuery(Songs)
-      assert(query.slice(0, 37) == """http://developer.echonest.com/api/v4/""")
-      val split = query.split(Array('/', '?', '&', '='))
-      assert(split(5) == "artist" && split(6) == "songs")
-      assert(split.contains("api_key"))
-      assert(split.contains("name"))
-      val format = split.indexOf("format")
-      assert(format > -1 && format < split.length - 1 && 
-             split(format+1) == "xml")
-    }
+      assert(query._1 == "songs")
+      assert(query._2 == GetRequest)
+      val mapped = Map(query._3:_*)
+      assert(mapped.contains("name"))
+     }
     it("should parse & store query results") {
       assert(artist(Songs).head(Title) == "I Love You")
     }
@@ -44,16 +40,11 @@ class EchoNestSpec extends FunSpec {
     song = new Song(HashMap(Id -> "Placeholder")) with ValidResponseQuery
     it("should correctly generate queries") {
       val query = song.generateQuery(Hotttnesss)
-      assert(query.slice(0, 37) == """http://developer.echonest.com/api/v4/""")
-      val split = query.split(Array('/', '?', '&', '='))
-      assert(split(5) == "song" && split(6) == "profile")
-      assert(split.contains("api_key"))
-      val bucket = split.indexOf("bucket")
-      assert(bucket > -1 && bucket < split.length - 1 && 
-             split(bucket+1) == "song_hotttnesss")
-      val format = split.indexOf("format")
-      assert(format > -1 && format < split.length - 1 && 
-             split(format+1) == "xml")
+      assert(query._1 == "profile")
+      assert(query._2 == GetRequest)
+      val mapped = Map(query._3:_*)
+      assert(mapped.contains("id"))
+      assert(mapped.getOrElse("bucket", "") == "song_hotttnesss")
     }
     it("should parse & store query results") {
       assert(song(Hotttnesss) == 0.709238)

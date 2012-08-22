@@ -31,17 +31,21 @@ case object Wandering extends PlaylistOption
 // e.g. val base = "playlist/dynamic/create?variety=1&distribution=wandering&"
 
 trait CreateQuery extends Query {
+  val base = "playlist/"
+  def url: String
   def playSeeds: Seq[PlaylistSeed]
+  def otherArgs: Seq[(String, String)]
 
-  def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
-    generateQuery(p, playSeeds.take(5).map {
+  def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
+    (url, GetRequest, otherArgs ++ playSeeds.take(5).map {
       (s: PlaylistSeed) => s match {
-        case a: artist.Artist => "artist" + (a.data.get(artist.Name) match {
+        case a: artist.Artist => ("artist" -> (a.data.get(artist.Name) match {
           case Some(n) => "=" + n.asInstanceOf[String]
           case None => "_id=" + a.data.getOrElse(artist.Id, "").asInstanceOf[String]
-        })
-        case s: song.Song => "song_id=" + s(song.Id)
-      }}.mkString("&"))
+        }))
+        case s: song.Song => ("song_id" -> s(song.Id))
+      }
+    })
 }
 
 object Static {
@@ -49,8 +53,9 @@ object Static {
   //   also TrackId with Rosetta ?
   def apply(seeds: Seq[PlaylistSeed])(implicit apiKey: EchoNestKey): Seq[song.Song] = {
     new CreateQuery {
-      val base = "playlist/basic?"
+      val url = "basic"
       val playSeeds = seeds
+      val otherArgs = List()
 
       def processQuery(p: QueryParameter, elem: Elem): Any =
         (elem \ "songs" \\ "song") map ((x) => song.Song(song.Song.fromXML(x):_*))
@@ -64,73 +69,77 @@ object Dynamic {
 
   def apply(seeds: Seq[PlaylistSeed], args: Seq[PlaylistOption])(implicit apiKey: EchoNestKey): Dynamic =
     new Dynamic(new CreateQuery {
-      val base = "playlist/dynamic/create?" + (args map {
+      val url = "dynamic/create"
+      val playSeeds = seeds
+      val otherArgs = (args map {
         (arg: PlaylistOption) => arg match {
-          case Variety(v) => "variety=" + v
-          case Focused => "distribution=focused"
-          case Wandering => "distribution=wandering"
+          case Variety(v) => ("variety" -> v.toString)
+          case Focused => ("distribution" -> "focused")
+          case Wandering => ("distribution" -> "wandering")
         }
-      }).mkString("&") + (if (args.length > 0) "&" else "") +
-      "type=" + (seeds.head match {
+      }) :+ ("type" -> (seeds.head match {
         case v:song.Song => "song-radio"
         case v:artist.Artist => "artist-radio"
-      }) + "&"
-      val playSeeds = seeds
+      }))
+
       def processQuery(p: QueryParameter, elem: Elem): String = (elem \ "session_id") text
     }.runQuery(NoParameters).asInstanceOf[String])
 }
 
 class Dynamic (val session_id: String)(implicit apiKey: EchoNestKey) {
-  abstract class DynamicQuery (val command: String) extends Query {
+  abstract class DynamicQuery (val command: String, val args: Seq[(String, String)]) extends Query {
     val base = "playlist/dynamic/"
-    def generateQuery(p: QueryParameter)(implicit apiKey: EchoNestKey): String =
-      generateQuery(p, command + "session_id=" + session_id)
+
+    def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
+      (command, GetRequest, Seq("session_id" -> session_id) ++ args)
   }
 
   // Next can return multiple songs, but it's simpler to just return one and
   //   its corresponding feedback callback
   // So, find the next song and return it along with a function used to rate it
   def next: (song.Song, (Feedback) => Unit) = {
-    val s = new DynamicQuery("next?results=1&") {
+    val s = new DynamicQuery("next", List("results" -> "1")) {
       def processQuery(p: QueryParameter, elem: Elem): Any =
         song.Song(song.Song.fromXML((elem \ "songs" \\ "song") head):_*)
     }.runQuery(NoParameters).asInstanceOf[song.Song]
 
     (s, (f: Feedback) => new DynamicQuery(
-      "feedback?" + (f match {
+      "feedback", List((f match {
         case BanArtist => "ban_artist"
         case FavoriteArtist => "favorite_artist"
         case BanSong => "ban_song"
         case SkipSong => "skip_song"
         case FavoriteSong => "favorite_song"
-      }) + "=" + s(song.Id) + "&") {
+      }) -> s(song.Id))) {
         def processQuery(p: QueryParameter, elem: Elem): Any = { }
       }.runQuery(NoParameters))
   }
 
   def steer(params: Steering*) {
-    new DynamicQuery("steer?" + (params.map {
+    new DynamicQuery("steer", params.map {
       (p) =>
         p match {
-          case PlaySimilar(i) => if (i >= 0) "more_like_this=last^" + i
-                                 else "less_like_this=last^" + (-i)
-          case ChangeVariety(i) => "variety=" + i
+          case PlaySimilar(i) => if (i >= 0) ("more_like_this" -> ("last^" + i))
+                                 else ("less_like_this" -> ("last^" + (-i)))
+          case ChangeVariety(i) => ("variety" -> i.toString)
         }
-    }).mkString("&") + "&") {
+    }) {
       def processQuery(p: QueryParameter, elem: Elem): Any = { }
     }.runQuery(NoParameters)
   }
 
   def restart(seeds: Seq[PlaylistSeed]) {
     new CreateQuery {
-      val base = "playlist/dynamic/restart?session_id=" + session_id + "&"
+      val url = "dynamic/restart"
       val playSeeds = seeds
+      val otherArgs = List(("session_id" -> session_id))
+
       def processQuery(p: QueryParameter, elem: Elem): Any = { }
     }.runQuery(NoParameters)
   }
 
   def delete {
-    new DynamicQuery("delete?") {
+    new DynamicQuery("delete", List()) {
       def processQuery(p: QueryParameter, elem: Elem): Any = { }
     }.runQuery(NoParameters)
   }
