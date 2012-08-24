@@ -67,8 +67,7 @@ extends Query with PlaylistSeed {
     }, GetRequest, p match {
       case Name => List(("id" -> apply(Id)))
       case Id => List(("name" -> apply(Name)))
-      case Songs => List(queryIdentifier)
-      case Terms => List(queryIdentifier)
+      case Songs|Terms => List(queryIdentifier)
     })
 
   // Just uses XML constructor for Song; should just link to "Artist -> this"

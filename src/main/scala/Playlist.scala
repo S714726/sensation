@@ -8,14 +8,6 @@ import s7.sensation._
 
 trait PlaylistSeed
 
-// There are a few more options, but these are simple
-sealed abstract class Feedback
-case object BanArtist extends Feedback
-case object FavoriteArtist extends Feedback
-case object BanSong extends Feedback
-case object SkipSong extends Feedback
-case object FavoriteSong extends Feedback
-
 // Name collision for "variety"; maybe yet another namespace or
 //   arrangment scheme is necessary
 sealed abstract class Steering
@@ -108,8 +100,9 @@ class Dynamic (val session_id: String)(implicit apiKey: EchoNestKey) {
         case BanArtist => "ban_artist"
         case FavoriteArtist => "favorite_artist"
         case BanSong => "ban_song"
-        case SkipSong => "skip_song"
         case FavoriteSong => "favorite_song"
+        case SkipSong => "skip_song"
+        case PlaySong => "play_song"
       }) -> s(song.Id))) {
         def processQuery(p: QueryParameter, elem: Elem): Any = { }
       }.runQuery(NoParameters))

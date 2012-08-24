@@ -14,6 +14,15 @@ sealed abstract class RequestMethod
 case object GetRequest extends RequestMethod
 case object PostRequest extends RequestMethod
 
+// There are a few more options, but these are simple
+sealed abstract class Feedback
+case object BanArtist extends Feedback
+case object FavoriteArtist extends Feedback
+case object BanSong extends Feedback
+case object FavoriteSong extends Feedback
+case object SkipSong extends Feedback
+case object PlaySong extends Feedback
+
 trait Query {
   val root = "http://developer.echonest.com/api/v4/"
   def base: String

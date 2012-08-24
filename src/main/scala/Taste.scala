@@ -1,7 +1,9 @@
 package s7.sensation.taste
 
 import s7.sensation._
-import s7.sensation.song.Song
+import s7.sensation.song.{Id, Song}
+
+import scala.util.parsing.json.{JSONArray, JSONObject}
 import scala.xml.Elem
 
 object TasteProfile {
@@ -27,19 +29,26 @@ abstract class TasteProfile (val id: String)(implicit apiKey: EchoNestKey) {
   //   both need to have some kind of similar apply(Id) method
   type Item = Song
 
-// use scala.util.parsing.json.{JSONObject, JSONArray} to insert/format stuff
-// for update:
-//   new JSONObject(Map[String, Any])
-//   new JSONArray(List[Any])
-//   JSONObject.toString()
+  def feedback(i: Item, f: Feedback) {
+    new Query {
+      val base = "catalog/"
 
-  // Don't know if we have to add new items manually for update to work
-  //   TODO ask Ingrid
-//  def feedback(i: Item, f: Feedback) {
-    // feedback updates item with feedback similar to playlist
-    // need to abstract out Feedback class ... maybe to just an
-    // s7.sensation.core along with the common query stuff
-//  }
+      def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
+        ("update", PostRequest, List("data" -> new JSONArray(List(
+          new JSONObject(Map("action" -> (f match {
+            case SkipSong => "skip"
+            case PlaySong => "play"
+            case _ => "update"
+          }), "item" -> new JSONObject(
+            Map("song_id" -> i(Id), "item_id" -> i(Id)) ++ (f match {
+              case FavoriteSong => Map("favorite" -> "true")
+              case BanSong => Map("ban" -> "true")
+              case _ => Map()
+            })))))).toString()))
+
+      def processQuery (p: QueryParameter, elem: Elem): Any = { }
+    }.runQuery(NoParameters)
+  }
 
   def delete {
     new Query {
@@ -48,9 +57,7 @@ abstract class TasteProfile (val id: String)(implicit apiKey: EchoNestKey) {
       def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
         ("delete", PostRequest, List("id" -> id))
 
-      def processQuery (p: QueryParameter, elem: Elem): Any = {
-        Console.println(elem)
-      }
+      def processQuery (p: QueryParameter, elem: Elem): Any = { }
     }.runQuery(NoParameters)
   }
 }
