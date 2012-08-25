@@ -29,26 +29,60 @@ abstract class TasteProfile (val id: String)(implicit apiKey: EchoNestKey) {
   //   both need to have some kind of similar apply(Id) method
   type Item = Song
 
-  def feedback(i: Item, f: Feedback) {
+  def update(i: Item, f: Feedback): String = {
     new Query {
       val base = "catalog/"
 
-      def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
-        ("update", PostRequest, List("data" -> new JSONArray(List(
+      def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) = {
+        val data = new JSONArray(List(
           new JSONObject(Map("action" -> (f match {
             case SkipSong => "skip"
             case PlaySong => "play"
             case _ => "update"
           }), "item" -> new JSONObject(
             Map("song_id" -> i(Id), "item_id" -> i(Id)) ++ (f match {
-              case FavoriteSong => Map("favorite" -> "true")
-              case BanSong => Map("ban" -> "true")
+              case FavoriteSong => Map("favorite" -> true)
+              case BanSong => Map("ban" -> true)
               case _ => Map()
-            })))))).toString()))
+            })))))).toString()
+        ("update", PostRequest, List("id" -> id, "data" -> data))
+      }
 
-      def processQuery (p: QueryParameter, elem: Elem): Any = { }
-    }.runQuery(NoParameters)
+      def processQuery (p: QueryParameter, elem: Elem): String =
+        (elem \ "ticket") text
+    }.runQuery(NoParameters).asInstanceOf[String]
   }
+
+  def read: Option[String] = read(List())
+  def read(i: Item): Option[String] = read(List("item_id" -> i(Id)))
+
+  // read returns JSON output inside the XML for some reason; the Scala JSON
+  //   parser is complete crap so for now return raw JSON
+  // At least return None if the output is empty for now
+  def read(args: List[(String, String)]): Option[String] = new Query {
+    val base = "catalog/"
+
+    def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
+      ("read", GetRequest, List("id" -> id) ++ args)
+
+    def processQuery (p: QueryParameter, elem: Elem): Option[String] = {
+      val result = (elem \\ "items" text)
+      result match {
+        case "()" => None
+        case _ => Some(result)
+      }
+    }
+  }.runQuery(NoParameters).asInstanceOf[Option[String]]
+
+  def status(ticket: String): Boolean = new Query {
+    val base = "catalog/"
+
+    def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
+      ("status", GetRequest, List("ticket" -> ticket))
+
+    def processQuery (p: QueryParameter, elem: Elem): Boolean =
+      if ((elem \ "ticket_status" text) == "complete") true else false
+  }.runQuery(NoParameters).asInstanceOf[Boolean]
 
   def delete {
     new Query {
