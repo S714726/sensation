@@ -16,42 +16,31 @@ object TasteProfile {
       def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
         ("create", PostRequest, List("type" -> "song", "name" -> name))
 
-      def processQuery (p: QueryParameter, elem: Elem): String = {
-        Console.println(elem)
-        (elem \ "id") text
-      }
+      def processQuery (p: QueryParameter, elem: Elem): String = (elem \ "id") text
     }.runQuery(NoParameters).asInstanceOf[String])
 }
 
 // Taste profiles do have "name"s associated with them, but I'm not storing them
 abstract class TasteProfile (val id: String)(implicit apiKey: EchoNestKey) {
+  abstract class TasteProfileQuery(val command: String, val kind: RequestMethod, val args: Seq[(String, String)])
+           extends Query {
+      val base = "catalog/"
+
+      def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
+        (command, kind, Seq("id" -> id) ++ args)
+  }
+
   // TODO Implement compatibility with Artist
   //   both need to have some kind of similar apply(Id) method
   type Item = Song
 
-  def update(i: Item, f: Feedback): String = {
-    new Query {
-      val base = "catalog/"
-
-      def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) = {
-        val data = new JSONArray(List(
-          new JSONObject(Map("action" -> (f match {
-            case SkipSong => "skip"
-            case PlaySong => "play"
-            case _ => "update"
-          }), "item" -> new JSONObject(
-            Map("song_id" -> i(Id), "item_id" -> i(Id)) ++ (f match {
-              case FavoriteSong => Map("favorite" -> true)
-              case BanSong => Map("ban" -> true)
-              case _ => Map()
-            })))))).toString()
-        ("update", PostRequest, List("id" -> id, "data" -> data))
-      }
-
-      def processQuery (p: QueryParameter, elem: Elem): String =
-        (elem \ "ticket") text
+  // Only add items for now; use sync. calls for everything else
+  def update(i: Item): String = new TasteProfileQuery(
+    "update", PostRequest, List("data" -> new JSONArray(List(new JSONObject(
+      Map("item" -> new JSONObject(
+      Map("song_id" -> i(Id), "item_id" -> i(Id))))))).toString())) {
+      def processQuery (p: QueryParameter, elem: Elem): String = (elem \ "ticket") text
     }.runQuery(NoParameters).asInstanceOf[String]
-  }
 
   def read: Option[String] = read(List())
   def read(i: Item): Option[String] = read(List("item_id" -> i(Id)))
@@ -59,12 +48,8 @@ abstract class TasteProfile (val id: String)(implicit apiKey: EchoNestKey) {
   // read returns JSON output inside the XML for some reason; the Scala JSON
   //   parser is complete crap so for now return raw JSON
   // At least return None if the output is empty for now
-  def read(args: List[(String, String)]): Option[String] = new Query {
-    val base = "catalog/"
-
-    def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
-      ("read", GetRequest, List("id" -> id) ++ args)
-
+  def read(args: Seq[(String, String)]): Option[String] = new TasteProfileQuery(
+    "read", GetRequest, args) {
     def processQuery (p: QueryParameter, elem: Elem): Option[String] = {
       val result = (elem \\ "items" text)
       result match {
@@ -85,12 +70,7 @@ abstract class TasteProfile (val id: String)(implicit apiKey: EchoNestKey) {
   }.runQuery(NoParameters).asInstanceOf[Boolean]
 
   def delete {
-    new Query {
-      val base = "catalog/"
-
-      def generateQuery(p: QueryParameter): (String, RequestMethod, Seq[(String, String)]) =
-        ("delete", PostRequest, List("id" -> id))
-
+    new TasteProfileQuery("delete", PostRequest, Seq()) {
       def processQuery (p: QueryParameter, elem: Elem): Any = { }
     }.runQuery(NoParameters)
   }
