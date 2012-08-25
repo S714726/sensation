@@ -8,6 +8,7 @@ import scala.xml.Elem
 
 object TasteProfile {
   // TODO Implement ArtistProfile
+  // TODO Implement list() for easy deletion!
 
   def apply(seed: Song, name: String)(implicit apiKey: EchoNestKey): SongProfile =
     new SongProfile (new Query {
@@ -41,6 +42,32 @@ abstract class TasteProfile (val id: String)(implicit apiKey: EchoNestKey) {
       Map("song_id" -> i(Id), "item_id" -> i(Id))))))).toString())) {
       def processQuery (p: QueryParameter, elem: Elem): String = (elem \ "ticket") text
     }.runQuery(NoParameters).asInstanceOf[String]
+
+  // Maybe feedback should be unified in one function instead of following
+  //   the API directly?
+  def play(i: Item) {
+    new TasteProfileQuery("play", GetRequest, List("item" -> i(Id))) {
+      def processQuery (p: QueryParameter, elem: Elem): Any = { }
+    }.runQuery(NoParameters)
+  }
+
+  def skip(i: Item) {
+    new TasteProfileQuery("skip", GetRequest, List("item" -> i(Id))) {
+      def processQuery (p: QueryParameter, elem: Elem): Any = { }
+    }.runQuery(NoParameters)
+  }
+
+  def favorite(i: Item) {
+    new TasteProfileQuery("favorite", GetRequest, List("item" -> i(Id))) {
+      def processQuery (p: QueryParameter, elem: Elem): Any = { }
+    }.runQuery(NoParameters)
+  }
+
+  def ban(i: Item) {
+    new TasteProfileQuery("ban", GetRequest, List("item" -> i(Id))) {
+      def processQuery (p: QueryParameter, elem: Elem): Any = { }
+    }.runQuery(NoParameters)
+  }
 
   def read: Option[String] = read(List())
   def read(i: Item): Option[String] = read(List("item_id" -> i(Id)))
